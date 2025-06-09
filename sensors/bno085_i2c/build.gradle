@@ -1,12 +1,17 @@
-description = 'Put your description here'
-ext.details = "Details here"
-version = '1.0.0'
+description = 'BNO085'
+ext.details = "BNO085 Sensor over i2c Connection"
+version = '0.0.1'
 
 dependencies {
     implementation 'org.sensorhub:sensorhub-core:' + oshCoreVersion
 //    implementation project(':sensorhub-service-video')
 //    implementation project(':sensorhub-driver-videocam')
     testImplementation('junit:junit:4.13.1')
+
+// myNote:
+// Pi4j Dependencies
+    implementation 'com.pi4j:pi4j-core:2.8.0'
+    implementation 'com.pi4j:pi4j-plugin-linuxfs:2.8.0'
 }
 
 // exclude tests requiring connection to the sensor
@@ -29,9 +34,9 @@ osgi {
 ext.pom >>= {
     developers {
         developer {
-            id 'some id'
-            name 'Your name'
-            organization ''
+            id 'bno085'
+            name 'Bill Brown'
+            organization 'Botts-inc'
             organizationUrl ''
         }
     }

@@ -11,6 +11,7 @@
  ******************************* END LICENSE BLOCK ***************************/
 package com.sample.impl.sensor.BNO085;
 
+import com.sample.impl.sensor.BNO085.config.Bno085Config;
 import org.junit.After;
 import org.junit.Before;
 
@@ -18,16 +19,16 @@ import org.junit.Before;
  * Base class for unit tests which initializes the sensor before each test and cleans up after.
  */
 public class TestBase {
-    Sensor sensor;
-    Output output;
+    Bno085Sensor sensor;
+    BNO085Output output;
 
     @Before
     public void init() throws Exception {
-        Config config = new Config();
+        Bno085Config config = new Bno085Config();
         config.serialNumber = "123456789";
         config.name = "Sensor Template";
         config.description = "Description of the sensor";
-        sensor = new Sensor();
+        sensor = new Bno085Sensor();
         sensor.init(config);
         sensor.start();
         output = sensor.output;

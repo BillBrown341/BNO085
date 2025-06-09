@@ -9,13 +9,15 @@
 
  Copyright (C) 2020-2025 Botts Innovative Research, Inc. All Rights Reserved.
  ******************************* END LICENSE BLOCK ***************************/
-package com.sample.impl.sensor.BNO085;
+package com.sample.impl.sensor.BNO085.config;
 
+import com.pi4j.io.i2c.I2CConfig;
+import com.sample.impl.sensor.BNO085.Bno085Sensor;
 import org.sensorhub.api.config.DisplayInfo;
 import org.sensorhub.api.sensor.SensorConfig;
 
 /**
- * Configuration settings for the {@link Sensor} driver exposed via the OpenSensorHub Admin panel.
+ * Configuration settings for the {@link Bno085Sensor} driver exposed via the OpenSensorHub Admin panel.
  * <p>
  * Public fields are exposed in the Admin panel for configuration by the user.
  * These fields can be annotated with the DisplayInfo annotation to provide additional information to the user
@@ -27,11 +29,20 @@ import org.sensorhub.api.sensor.SensorConfig;
  * public Type configOption = "default value";
  * }</pre>
  */
-public class Config extends SensorConfig {
+public class Bno085Config extends SensorConfig {
     /**
      * The unique identifier for the configured sensor (or sensor platform).
      */
     @DisplayInfo.Required
     @DisplayInfo(desc = "Serial number or unique identifier")
-    public String serialNumber = "sensor001";
+    public String serialNumber;
+
+    @DisplayInfo.Required
+    @DisplayInfo(label = "I2C Settings", desc = "Configuration options for the I2C Connection")
+    public i2cConfig connection = new i2cConfig();
+
+    @DisplayInfo.Required
+    @DisplayInfo(label = "Outputs", desc = "Configuration options for source data outputs from driver")
+    public Outputs outputs = new Outputs();
+
 }

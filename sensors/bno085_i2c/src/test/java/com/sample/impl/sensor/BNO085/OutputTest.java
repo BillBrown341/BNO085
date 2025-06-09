@@ -26,9 +26,9 @@ public class OutputTest extends TestBase {
 
         // Verify that the output's record description has the expected properties.
         var recordDescription = (DataRecord) output.getRecordDescription();
-        assertEquals(Output.SENSOR_OUTPUT_NAME, recordDescription.getName());
-        assertEquals(Output.SENSOR_OUTPUT_LABEL, recordDescription.getLabel());
-        assertEquals(Output.SENSOR_OUTPUT_DESCRIPTION, recordDescription.getDescription());
+        assertEquals(BNO085Output.SENSOR_OUTPUT_NAME, recordDescription.getName());
+        assertEquals(BNO085Output.SENSOR_OUTPUT_LABEL, recordDescription.getLabel());
+        assertEquals(BNO085Output.SENSOR_OUTPUT_DESCRIPTION, recordDescription.getDescription());
 
         // Verify that the record description contains the expected fields.
         assertNotNull(recordDescription.getField("sampleTime"));

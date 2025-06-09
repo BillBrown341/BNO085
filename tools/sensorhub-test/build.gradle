@@ -7,7 +7,8 @@ dependencies {
     implementation 'org.sensorhub:sensorhub-datastore-h2:' + oshCoreVersion
     implementation 'org.sensorhub:sensorhub-webui-core:' + oshCoreVersion
     implementation 'org.sensorhub:sensorhub-service-consys:' + oshCoreVersion
-    implementation project(':sensorhub-driver-template')
+//    implementation project(':sensorhub-driver-template')
+    implementation project(':bno085_i2c')
 
     // To test your own modules, add a line with your module's project name.
     // EX:

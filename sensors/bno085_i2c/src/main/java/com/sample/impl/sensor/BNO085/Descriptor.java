@@ -11,6 +11,7 @@
  ******************************* END LICENSE BLOCK ***************************/
 package com.sample.impl.sensor.BNO085;
 
+import com.sample.impl.sensor.BNO085.config.Bno085Config;
 import org.sensorhub.api.module.IModule;
 import org.sensorhub.api.module.IModuleProvider;
 import org.sensorhub.api.module.ModuleConfig;
@@ -27,7 +28,7 @@ public class Descriptor extends JarModuleProvider implements IModuleProvider {
      */
     @Override
     public Class<? extends IModule<?>> getModuleClass() {
-        return Sensor.class;
+        return Bno085Sensor.class;
     }
 
     /**
@@ -37,6 +38,6 @@ public class Descriptor extends JarModuleProvider implements IModuleProvider {
      */
     @Override
     public Class<? extends ModuleConfig> getModuleConfigClass() {
-        return Config.class;
+        return Bno085Config.class;
     }
 }
