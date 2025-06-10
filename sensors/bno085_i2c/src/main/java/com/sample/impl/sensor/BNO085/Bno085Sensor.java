@@ -12,6 +12,7 @@
 package com.sample.impl.sensor.BNO085;
 
 import com.sample.impl.sensor.BNO085.config.Bno085Config;
+import com.sample.impl.sensor.BNO085.outputs.*;
 import org.sensorhub.api.common.SensorHubException;
 import org.sensorhub.impl.sensor.AbstractSensorModule;
 import org.slf4j.Logger;
@@ -24,7 +25,8 @@ import com.pi4j.io.i2c.I2C;
 import com.pi4j.io.i2c.I2CConfig;
 import com.pi4j.io.i2c.I2CProvider;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -33,13 +35,19 @@ import java.util.Arrays;
  * This class is responsible for providing sensor information, managing output registration,
  * and performing initialization and shutdown for the driver and its outputs.
  */
-public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
+public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements Runnable {
     static final String UID_PREFIX = "osh:bno085:";
     static final String XML_PREFIX = "BNO085";
 
     private static final Logger logger = LoggerFactory.getLogger(Bno085Sensor.class);
 
-    BNO085Output output;
+
+//    BNO085Output output;
+    AccelerometerOutput accelerometerOutput;
+    GravityOutput gravityOutput;
+    GyroCalibratedOutput gyroCalOutput;
+    MagFieldCalibratedOutput magFieldCalOutput;
+    RotationOutput rotationOutput;
 
     // myNote:
     // My variables:
@@ -48,14 +56,9 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
     I2CProvider i2CProvider;
 
     private volatile boolean keepRunning = false;
+    List<Byte> activeReportIds = new ArrayList<>();
 
 
-    // Array Values
-    float[] accelerationValues;
-    float[] gravityValues;
-    float[] gyroCalValues;
-    float[] magFieldCalValues;
-    float[] rotationValues;
 
     /// Debugging Variables
     String BoldOn = "\033[1m";   // ANSI code to turn on bold
@@ -65,47 +68,35 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
     public void doInit() throws SensorHubException {
         super.doInit();
 
+        // Create I2C connection
         createI2cConnection();
 
         // Generate identifiers
         generateUniqueID(UID_PREFIX, config.serialNumber);
         generateXmlID(XML_PREFIX, config.serialNumber);
 
-        // Create and initialize output
-        output = new BNO085Output(this);
-        addOutput(output, false);
-        output.doInit();
+        // Create and initialize outputs checked in the admin panel
+        createConfiguredOutputs();
+
     }
 
     @Override
     public void doStart() throws SensorHubException, InterruptedException {
         super.doStart();
-        byte[] timeInteralArray = new byte[4];
-        timeInteralArray = convertTo4ByteArray(config.outputs.timeIntervalMicro);
-        if(config.outputs.isAccelerometer){
-            setFeature(Bno085ConstantsI2C.ACCELEROMETER_ID,timeInteralArray[3],timeInteralArray[2],timeInteralArray[1],timeInteralArray[0]);
-//            setFeature(Bno085ConstantsI2C.ACCELEROMETER_ID,(byte) 0x40, (byte) 0x42, (byte) 0x0F, (byte) 0);
+        byte[] timeIntervalArray;
+        timeIntervalArray = convertTo4ByteArray(config.outputs.timeIntervalMicro);
+
+        for (byte id: activeReportIds){
+            System.out.println(BoldOn + "Setting Sensor on BNO085" + BoldOff);
+            setFeature(id,timeIntervalArray[3],timeIntervalArray[2],timeIntervalArray[1],timeIntervalArray[0]);
         }
-        if(config.outputs.isGravity){
-            setFeature(Bno085ConstantsI2C.GRAVITY_ID,timeInteralArray[3],timeInteralArray[2],timeInteralArray[1],timeInteralArray[0]);
-        }
-        if(config.outputs.isGyroCal){
-            setFeature(Bno085ConstantsI2C.GYROSCOP_CALIBRATED_ID,timeInteralArray[3],timeInteralArray[2],timeInteralArray[1],timeInteralArray[0]);
-        }
-        if(config.outputs.isMagFieldCal){
-            setFeature(Bno085ConstantsI2C.MAGNETIC_FIELD_CALIBRATED_ID,timeInteralArray[3],timeInteralArray[2],timeInteralArray[1],timeInteralArray[0]);
-        }
-        if(config.outputs.isRotation){
-            setFeature(Bno085ConstantsI2C.ROTATION_VECTOR_ID,timeInteralArray[3],timeInteralArray[2],timeInteralArray[1],timeInteralArray[0]);
-        }
+
         Thread.sleep(3000);
 
-        keepRunning = true;
 
-        while (keepRunning) {
-            readSensor();
-            Thread.sleep(config.outputs.timeIntervalMicro/1000);
-        }
+        keepRunning = true;
+        Thread worker = new Thread(this, "BNO0855 Worker");
+        worker.start();
     }
 
     @Override
@@ -113,18 +104,30 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
         super.doStop();
         keepRunning = false;
 
-        setFeature(Bno085ConstantsI2C.ACCELEROMETER_ID,(byte)0,(byte)0,(byte)0,(byte)0);
-        setFeature(Bno085ConstantsI2C.GRAVITY_ID,(byte)0,(byte)0,(byte)0,(byte)0);
-        setFeature(Bno085ConstantsI2C.GYROSCOP_CALIBRATED_ID,(byte)0,(byte)0,(byte)0,(byte)0);
-        setFeature(Bno085ConstantsI2C.MAGNETIC_FIELD_CALIBRATED_ID,(byte)0,(byte)0,(byte)0,(byte)0);
-        setFeature(Bno085ConstantsI2C.ROTATION_VECTOR_ID,(byte)0,(byte)0,(byte)0,(byte)0);
+        for (byte id: activeReportIds){
+            System.out.println(BoldOn + "Turning off Sensor on BNO085" + BoldOff);
+            setFeature(id,(byte)0,(byte)0,(byte)0,(byte)0);
+        }
         Thread.sleep(500);
+        // CALL READ SENSOR FUNCTION ONE LAST TIME TO FLUSH
         readSensor();
     }
 
     @Override
     public boolean isConnected() {
         return true; //output.isAlive()
+    }
+
+    @Override
+    public void run() {
+        while (keepRunning){
+            readSensor();
+            try {
+                Thread.sleep(config.outputs.timeIntervalMicro/1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     // myNote:
@@ -159,53 +162,92 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
         System.out.println(results);
     }
 
-    public float[] combineFloatArray(float[] newArray, float[] existingArray){
-        int combinedLength = newArray.length + existingArray.length;
-        float[] combinedArray = new float[combinedLength];
+//    public float[] combineFloatArray(float[] newArray, float[] existingArray){
+//        int combinedLength = newArray.length + existingArray.length;
+//        float[] combinedArray = new float[combinedLength];
+//
+//        System.arraycopy(existingArray,0,combinedArray,0,existingArray.length);
+//        System.arraycopy(newArray, 0, combinedArray, existingArray.length, newArray.length);
+//
+//        return combinedArray;
+//
+//    }
 
-        System.arraycopy(existingArray,0,combinedArray,0,existingArray.length);
-        System.arraycopy(newArray, 0, combinedArray, existingArray.length, newArray.length);
+//    public float[] createDataBlockArray(){
+//        // VALUES FOR THIS ARRAY MUST BE IN ORDER OF OUTPUT DATA STRUCTURE
+//        float[] DataBlockValues = new float[0];
+//        if(config.outputs.isAccelerometer){
+//            if(accelerationValues == null){
+//                accelerationValues = new float[]{0, 0, 0};
+//            }
+//            DataBlockValues = combineFloatArray(DataBlockValues, accelerationValues);
+//        }
+//        if(config.outputs.isGravity){
+//            if(gravityValues == null){
+//                gravityValues = new float[]{0, 0, 0};
+//            }
+//            DataBlockValues = combineFloatArray(DataBlockValues,gravityValues);
+//        }
+//        if(config.outputs.isGyroCal){
+//            if(gyroCalValues == null){
+//                gyroCalValues = new float[]{0, 0, 0};
+//            }
+//            DataBlockValues = combineFloatArray(DataBlockValues,gyroCalValues);
+//        }
+//        if(config.outputs.isMagFieldCal){
+//            if(magFieldCalValues == null){
+//                magFieldCalValues = new float[]{0, 0, 0};
+//            }
+//            DataBlockValues = combineFloatArray(DataBlockValues,magFieldCalValues);
+//        };
+//        if(config.outputs.isRotation){
+//            if(rotationValues == null){
+//                rotationValues = new float[]{0, 0, 0, 0, 0};
+//            }
+//            DataBlockValues = combineFloatArray(DataBlockValues,rotationValues);
+//        };
+//
+//
+//        return DataBlockValues;
+//    }
 
-        return combinedArray;
+    public void createConfiguredOutputs() {
 
-    }
-
-    public float[] createDataBlockArray(){
-        // VALUES FOR THIS ARRAY MUST BE IN ORDER OF OUTPUT DATA STRUCTURE
-        float[] DataBlockValues = new float[0];
         if(config.outputs.isAccelerometer){
-            if(accelerationValues == null){
-                accelerationValues = new float[]{0, 0, 0};
-            }
-            DataBlockValues = combineFloatArray(DataBlockValues, accelerationValues);
+            accelerometerOutput = new AccelerometerOutput(this);
+            addOutput(accelerometerOutput, false);
+            accelerometerOutput.doInit();
+
+            activeReportIds.add(Bno085ConstantsI2C.ACCELEROMETER_ID);
         }
         if(config.outputs.isGravity){
-            if(gravityValues == null){
-                gravityValues = new float[]{0, 0, 0};
-            }
-            DataBlockValues = combineFloatArray(DataBlockValues,gravityValues);
+            gravityOutput = new GravityOutput(this);
+            addOutput(gravityOutput, false);
+            gravityOutput.doInit();
+
+            activeReportIds.add(Bno085ConstantsI2C.GRAVITY_ID);
         }
         if(config.outputs.isGyroCal){
-            if(gyroCalValues == null){
-                gyroCalValues = new float[]{0, 0, 0};
-            }
-            DataBlockValues = combineFloatArray(DataBlockValues,gyroCalValues);
+            gyroCalOutput = new GyroCalibratedOutput(this);
+            addOutput(gyroCalOutput, false);
+            gyroCalOutput.doInit();
+
+            activeReportIds.add(Bno085ConstantsI2C.GYROSCOP_CALIBRATED_ID);
         }
         if(config.outputs.isMagFieldCal){
-            if(magFieldCalValues == null){
-                magFieldCalValues = new float[]{0, 0, 0};
-            }
-            DataBlockValues = combineFloatArray(DataBlockValues,magFieldCalValues);
-        };
+            magFieldCalOutput = new MagFieldCalibratedOutput(this);
+            addOutput(magFieldCalOutput, false);
+            magFieldCalOutput.doInit();
+
+            activeReportIds.add(Bno085ConstantsI2C.MAGNETIC_FIELD_CALIBRATED_ID);
+        }
         if(config.outputs.isRotation){
-            if(rotationValues == null){
-                rotationValues = new float[]{0, 0, 0, 0, 0};
-            }
-            DataBlockValues = combineFloatArray(DataBlockValues,rotationValues);
-        };
+            rotationOutput = new RotationOutput(this);
+            addOutput(rotationOutput, false);
+            rotationOutput.doInit();
 
-
-        return DataBlockValues;
+            activeReportIds.add(Bno085ConstantsI2C.ROTATION_VECTOR_ID);
+        }
     }
 
     /// REQUEST METHODS
@@ -228,7 +270,6 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
     }
 
     public void setFeature(byte ReportID, byte time_byte_LSB, byte time_byte_2, byte time_byte_1, byte time_byte_MSB) {
-        System.out.println(BoldOn + "Setting Sensor..." + BoldOff);
         byte[] setRequest = new byte[21];                               // Create a byte array to hold header info (4) and Set Feature Command Cargo (17)
 
         setRequest[0] = (byte) 0x15;                                    // Header 1: Length of Message LSB
@@ -467,10 +508,13 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
         System.out.println(BoldOn + idName + " Report\n" + BoldOff + featureResponse);
         switch (reportId){
             case Bno085ConstantsI2C.ACCELEROMETER_ID:
-                accelerationValues = new float[]{ x, y, z};
+//                accelerationValues = new float[]{ x, y, z};
+                accelerometerOutput.SetData(x,y,z);
                 break;
             case Bno085ConstantsI2C.GRAVITY_ID:
-                gravityValues = new float[]{ x, y, z };
+                gravityOutput.SetData(x,y,z);
+
+//                gravityValues = new float[]{ x, y, z };
                 break;
         }
     }
@@ -491,20 +535,21 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
 
         // Print GRAVITY FEATURE
         String featureResponse =
-                "0:\t" + (response[0] & 0xFF) + "\t(LSB Length)\n" +
-                        "1:\t" +  (response[1] & 0xFF) +"\t(MSB Length)\n" +
-                        "2:\t" +  (response[2] & 0xFF) +"\t(Channel)\n" +
-                        "3:\t" +  (response[3] & 0xFF) + "\t(Sequence Number)\n" +
-                        "4:\t0x02\t(Gyroscope Calibrated ID)\n" +
-                        "5:\t" +  (response[4] & 0xFF) + "\t(Sequence Number)\n" +
-                        "6:\t" +  (response[5] & 0xFF) + "\t(Status)\n" +
-                        "7:\t" +  (response[6] & 0xFF) + "\t(Delay)\n" +
-                        "8-9:\t"  +  String.format("%.2f", x) + " rad/s\t(Calibrated Axis X)\n" + // Must divide by 256 because Q point is 8
-                        "10-11:\t" + String.format("%.2f", y) + " rad/s\t(Calibrated Axis Y)\n" + // Must divide by 256 because Q point is 8
-                        "12-13:\t" + String.format("%.2f", z) + " rad/s\t(Calibrated Axis Z)\n";// Must divide by 256 because Q point is 8  //Must devide by 256 because Q point is 8
+            "0:\t" + (response[0] & 0xFF) + "\t(LSB Length)\n" +
+            "1:\t" +  (response[1] & 0xFF) +"\t(MSB Length)\n" +
+            "2:\t" +  (response[2] & 0xFF) +"\t(Channel)\n" +
+            "3:\t" +  (response[3] & 0xFF) + "\t(Sequence Number)\n" +
+            "4:\t0x02\t(Gyroscope Calibrated ID)\n" +
+            "5:\t" +  (response[4] & 0xFF) + "\t(Sequence Number)\n" +
+            "6:\t" +  (response[5] & 0xFF) + "\t(Status)\n" +
+            "7:\t" +  (response[6] & 0xFF) + "\t(Delay)\n" +
+            "8-9:\t"  +  String.format("%.2f", x) + " rad/s\t(Calibrated Axis X)\n" + // Must divide by 256 because Q point is 8
+            "10-11:\t" + String.format("%.2f", y) + " rad/s\t(Calibrated Axis Y)\n" + // Must divide by 256 because Q point is 8
+            "12-13:\t" + String.format("%.2f", z) + " rad/s\t(Calibrated Axis Z)\n";// Must divide by 256 because Q point is 8  //Must devide by 256 because Q point is 8
 
         System.out.println(BoldOn + "Gyroscope Calibrated Report\n" + BoldOff + featureResponse);
-        gyroCalValues = new float[]{x, y, z };
+
+        gyroCalOutput.SetData(x,y,z);
     }
 
     // 0X03 ---- CALIBRATED MAGNETIC FIELD
@@ -524,21 +569,21 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
 
         // Print GRAVITY FEATURE
         String featureResponse =
-                "0:\t" + (response[0] & 0xFF) + "\t(LSB Length)\n" +
-                        "1:\t" +  (response[1] & 0xFF) +"\t(MSB Length)\n" +
-                        "2:\t" +  (response[2] & 0xFF) +"\t(Channel)\n" +
-                        "3:\t" +  (response[3] & 0xFF) + "\t(Sequence Number)\n" +
-                        "4:\t0x03\t(Magnetic Field Calibrated ID)\n" +
-                        "5:\t" +  (response[4] & 0xFF) + "\t(Sequence Number)\n" +
-                        "6:\t" +  (response[5] & 0xFF) + "\t(Status)\n" +
-                        "7:\t" +  (response[6] & 0xFF) + "\t(Delay)\n" +
-                        "8-9:\t"  +  String.format("%.2f", x) + " µT\t(Calibrated Axis X)\n" +
-                        "10-11:\t" + String.format("%.2f", y) + " µT\t(Calibrated Axis Y)\n" +
-                        "12-13:\t" + String.format("%.2f", z) + " µT\t(Calibrated Axis Z)\n";
+            "0:\t" + (response[0] & 0xFF) + "\t(LSB Length)\n" +
+            "1:\t" +  (response[1] & 0xFF) +"\t(MSB Length)\n" +
+            "2:\t" +  (response[2] & 0xFF) +"\t(Channel)\n" +
+            "3:\t" +  (response[3] & 0xFF) + "\t(Sequence Number)\n" +
+            "4:\t0x03\t(Magnetic Field Calibrated ID)\n" +
+            "5:\t" +  (response[4] & 0xFF) + "\t(Sequence Number)\n" +
+            "6:\t" +  (response[5] & 0xFF) + "\t(Status)\n" +
+            "7:\t" +  (response[6] & 0xFF) + "\t(Delay)\n" +
+            "8-9:\t"  +  String.format("%.2f", x) + " µT\t(Calibrated Axis X)\n" +
+            "10-11:\t" + String.format("%.2f", y) + " µT\t(Calibrated Axis Y)\n" +
+            "12-13:\t" + String.format("%.2f", z) + " µT\t(Calibrated Axis Z)\n";
 
         System.out.println(BoldOn + "Magnetic Field Calibrated Report\n" + BoldOff + featureResponse);
-        magFieldCalValues = new float[]{ x, y, z };
 
+        magFieldCalOutput.SetData(x,y,z);
     }
 
     // 0X05 ---- ROTATION VECTOR
@@ -578,7 +623,8 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
                         "16-17:\t" + String.format("%.2f", a) + " rad\t(Accuracy Estimate)\n";
 
         System.out.println(BoldOn + "Rotation Vector Report\n" + BoldOff + featureResponse);
-        rotationValues = new float[]{ i, j, k, r, a };
+
+        rotationOutput.SetData(i, j, k, r, a);
     }
 
     // 0X07 - UNCALIBRATED GYROSCOPE
@@ -604,20 +650,20 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
 
         // Print GRAVITY FEATURE
         String featureResponse =
-                "0:\t" + (response[0] & 0xFF) + "\t(LSB Length)\n" +
-                        "1:\t" +  (response[1] & 0xFF) +"\t(MSB Length)\n" +
-                        "2:\t" +  (response[2] & 0xFF) +"\t(Channel)\n" +
-                        "3:\t" +  (response[3] & 0xFF) + "\t(Sequence Number)\n" +
-                        "4:\t0x07\t(Gyroscope Uncalibrated ID)\n" +
-                        "5:\t" +  (response[4] & 0xFF) + "\t(Sequence Number)\n" +
-                        "6:\t" +  (response[5] & 0xFF) + "\t(Status)\n" +
-                        "7:\t" +  (response[6] & 0xFF) + "\t(Delay)\n" +
-                        "8-9:\t"  +  String.format("%.2f", x) + " rad/s\t(Axis X)\n" +
-                        "10-11:\t" + String.format("%.2f", y) + " rad/s\t(Axis Y)\n" +
-                        "12-13:\t" + String.format("%.2f", z) + " rad/s\t(Axis Z)\n" +
-                        "14-15:\t"  +  String.format("%.2f", xbias) + " rad/s\t(bias Axis X)\n" +
-                        "16-17:\t" + String.format("%.2f", ybias) + " rad/s\t(bias Axis Y)\n" +
-                        "18-19:\t" + String.format("%.2f", zbias) + " rad/s\t(bias Axis Z)\n";
+            "0:\t" + (response[0] & 0xFF) + "\t(LSB Length)\n" +
+            "1:\t" +  (response[1] & 0xFF) +"\t(MSB Length)\n" +
+            "2:\t" +  (response[2] & 0xFF) +"\t(Channel)\n" +
+            "3:\t" +  (response[3] & 0xFF) + "\t(Sequence Number)\n" +
+            "4:\t0x07\t(Gyroscope Uncalibrated ID)\n" +
+            "5:\t" +  (response[4] & 0xFF) + "\t(Sequence Number)\n" +
+            "6:\t" +  (response[5] & 0xFF) + "\t(Status)\n" +
+            "7:\t" +  (response[6] & 0xFF) + "\t(Delay)\n" +
+            "8-9:\t"  +  String.format("%.2f", x) + " rad/s\t(Axis X)\n" +
+            "10-11:\t" + String.format("%.2f", y) + " rad/s\t(Axis Y)\n" +
+            "12-13:\t" + String.format("%.2f", z) + " rad/s\t(Axis Z)\n" +
+            "14-15:\t"  +  String.format("%.2f", xbias) + " rad/s\t(bias Axis X)\n" +
+            "16-17:\t" + String.format("%.2f", ybias) + " rad/s\t(bias Axis Y)\n" +
+            "18-19:\t" + String.format("%.2f", zbias) + " rad/s\t(bias Axis Z)\n";
 
         System.out.println(BoldOn + "Gyroscope Uncalibrated Report\n" + BoldOff + featureResponse);
 
@@ -751,7 +797,6 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
         printBytes(executableMsg);
     }
 
-
     public void readCommandResponse() throws InterruptedException {
         //RETRIEVE REPORT ID
         byte[] header = new byte[5];        // HEADER TO INCLUDE REPORT ID
@@ -771,28 +816,40 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
     }
 
     ///  MAIN METHOD THAT READS ALL DATA IN SENSOR'S DATASTREAM
-    public void readSensor() throws InterruptedException{
+    public void readSensor() {
         //RETRIEVE HEADER AND DESTRUCTURE
         byte[] header = new byte[4];
         this.i2c.read(header);
 
-        int msgLength = ((header[1] & 0x7F)<<8) | (header[0] & 0xFF); // combine LSB and MSB message, 0x7F hides first bit and 0xFF makes signed byte to unsigned byte
+        int msgLength = ((header[1] & 0x7F) << 8) | (header[0] & 0xFF); // combine LSB and MSB message, 0x7F hides first bit and 0xFF makes signed byte to unsigned byte
         int channel = header[2] & 0xFF; //Convert to unsigned byte
 
         // DIGEST MESSAGE HEADER AND CHECK THE CHANNEL IF MESSAGE CONTAINS ANY LENGTH
-        while (msgLength>0) {
-            switch (channel){
+        while (msgLength > 0) {
+            switch (channel) {
                 case Bno085ConstantsI2C.CHANNEL.SH_COMMAND:
-                    readCommandResponse();
+                    try {
+                        readCommandResponse();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                     break;
                 case Bno085ConstantsI2C.CHANNEL.EXECUTABLE:
                     readExecutableResponse(msgLength);
                     break;
                 case Bno085ConstantsI2C.CHANNEL.SH_CONTROL:
-                    readControlResponse();
+                    try {
+                        readControlResponse();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                     break;
                 case Bno085ConstantsI2C.CHANNEL.INPUT_SENSOR_REPORTS:
-                    readInputSensorResponse();
+                    try {
+                        readInputSensorResponse();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                     break;
                 case Bno085ConstantsI2C.CHANNEL.WAKE_INPUT_SENSOR_REPORTS:
                     readWakeInputSensorReports(msgLength);
@@ -805,25 +862,25 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> {
                     String unrecognizedHeader =
                             BoldOn + "UnrecognizedHeader:\n" + BoldOff +
                                     "0:\t" + msgLength + "\t(LSB Length)\n" +
-                                    "1:\t" + (header[1] & 0xFF) +"\t(MSB Length)\n" +
-                                    "2:\t" + channel +"\t(Channel)\n" +
+                                    "1:\t" + (header[1] & 0xFF) + "\t(MSB Length)\n" +
+                                    "2:\t" + channel + "\t(Channel)\n" +
                                     "3:\t" + (header[3] & 0xFF) + "\t(Sequence Number)\n";
                     System.out.println(unrecognizedHeader);
-//                    break;
+                    //                    break;
                     return;
             }
 
             // READ NEXT HEADER
             this.i2c.read(header);
-            msgLength = ((header[1] & 0x7F)<<8) | (header[0] & 0xFF);
+            msgLength = ((header[1] & 0x7F) << 8) | (header[0] & 0xFF);
             channel = header[2] & 0xFF;
         }
 
-        System.out.println("No more data in stream...");
+//        System.out.println("No more data in stream...");
         // myNote:
         // SET DATA IN OUTPUT
-        float[] myValues = createDataBlockArray();
-        output.SetData(myValues);
+//        float[] myValues = createDataBlockArray();
+//        output.SetData(myValues);
 
     }
 

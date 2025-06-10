@@ -25,7 +25,7 @@ public class Outputs {
     @DisplayInfo(label = "Calibrated Magnetic Field Vector", desc="Do you want sensor to display the calibrated Magnetic Field Vector")
     public boolean isMagFieldCal = false;
 
-    @DisplayInfo(label = "Calibrated Rotation Vector", desc="Do you want sensor to display the calibrated Rotation Vector")
+    @DisplayInfo(label = "Rotation Vector", desc="Do you want sensor to display the calibrated Rotation Vector")
     public boolean isRotation = false;
 
 }

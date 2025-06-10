@@ -19,6 +19,7 @@ import org.sensorhub.api.data.DataEvent;
 import org.sensorhub.impl.sensor.AbstractSensorOutput;
 import org.vast.swe.SWEHelper;
 import org.vast.swe.SWEBuilders;
+import org.vast.swe.helper.GeoPosHelper;
 
 
 /**
