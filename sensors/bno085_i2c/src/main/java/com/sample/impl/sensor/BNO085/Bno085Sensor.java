@@ -77,6 +77,11 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
 
         // Create and initialize outputs checked in the admin panel
         createConfiguredOutputs();
+        try {
+            resetSensor();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
 
     }
 
@@ -108,9 +113,8 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
             System.out.println(BoldOn + "Turning off Sensor on BNO085" + BoldOff);
             setFeature(id,(byte)0,(byte)0,(byte)0,(byte)0);
         }
-//        Thread.sleep(500);
-        // CALL READ SENSOR FUNCTION ONE LAST TIME TO FLUSH
-        readSensor();
+
+        resetSensor();
     }
 
     @Override
@@ -251,7 +255,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
         }
     }
 
-    /// REQUEST METHODS
+    /// REQUEST/COMMAND METHODS
     public void requestProductInfo() throws InterruptedException {
         System.out.println("Sending Product ID Request...");
         // Build a SHTP Packet
@@ -268,6 +272,34 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
 
         //SEND PACKAGE:
         this.i2c.write(productIDRequestMsg);
+    }
+
+    public void resetSensor() throws InterruptedException {
+        System.out.println(BoldOn + "Resetting Sensor..." + BoldOff);
+        byte[] setRequest = new byte[21];                               // Create a byte array to hold header info (4) and Set Feature Command Cargo (17)
+
+        setRequest[0] = (byte) 0x15;                                    // Header 1: Length of Message LSB
+        setRequest[1] = (byte) 0x00;                                    // Header 2: Length of Message MSB
+        setRequest[2] = Bno085ConstantsI2C.CHANNEL.SH_CONTROL;          // Header 3: Channel
+        setRequest[3] = (byte)0x00;                                     // Header 4: Sequence Number (does not appear to reset for some reason)
+        setRequest[4] = Bno085ConstantsI2C.COMMAND_REQUEST;             // Cargo 0: REPORT ID
+        setRequest[5] = (byte)0;                                        // Cargo 1: Sequence Number
+        setRequest[6] = Bno085ConstantsI2C.RESET_CMD;                   // Cargo 2: Command
+        setRequest[7] = (byte)0;                                        // Cargo 3: P0
+        setRequest[8] = (byte)0;                                        // Cargo 4: P1
+        setRequest[9] = (byte)0;                                        // Cargo 5: P2
+        setRequest[10] = (byte)0;                                       // Cargo 6: P3
+        setRequest[11] = (byte)0;                                       // Cargo 7: P4
+        setRequest[12] = (byte)0;                                       // Cargo 8: P5
+        setRequest[13] = (byte)0;                                       // Cargo 9: P6
+        setRequest[14] = (byte)0;                                       // Cargo 10: P7
+        setRequest[15] = (byte)0;                                       // Cargo 11: P8
+
+
+        this.i2c.write(setRequest);
+        Thread.sleep(200);
+        readSensor();
+        System.out.println(BoldOn + "Sensor Reset Complete..." + BoldOff);
     }
 
     public void setFeature(byte ReportID, byte time_byte_LSB, byte time_byte_2, byte time_byte_1, byte time_byte_MSB) {

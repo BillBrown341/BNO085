@@ -37,9 +37,11 @@ public class Bno085ConstantsI2C {
     public final static byte COMMAND_RESPONSE = (byte) 0XF1;
     public final static byte PRODUCT_RESPONSE_ID = (byte) 0xF8;
     public final static byte FEATURE_RESPONSE_ID = (byte) 0xFC;
-    /// REQUESTS
+    /// REQUESTS/COMMANDS
     public final static byte PRODUCT_ID_REQUEST = (byte) 0xF9;
     public final static byte SET_FEATURE_COMMAND = (byte) 0xFD;
+    public final static byte COMMAND_REQUEST = (byte) 0xF2;
+    public final static byte RESET_CMD = (byte) 0x0B;
 
     // BNO085 CHIP CONSTANTS
     public final static byte GET_FEATURE_REQUEST = (byte) 0xFE;
