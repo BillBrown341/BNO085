@@ -91,7 +91,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
             setFeature(id,timeIntervalArray[3],timeIntervalArray[2],timeIntervalArray[1],timeIntervalArray[0]);
         }
 
-        Thread.sleep(3000);
+//        Thread.sleep(3000);
 
 
         keepRunning = true;
@@ -108,7 +108,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
             System.out.println(BoldOn + "Turning off Sensor on BNO085" + BoldOff);
             setFeature(id,(byte)0,(byte)0,(byte)0,(byte)0);
         }
-        Thread.sleep(500);
+//        Thread.sleep(500);
         // CALL READ SENSOR FUNCTION ONE LAST TIME TO FLUSH
         readSensor();
     }
@@ -122,6 +122,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
     public void run() {
         while (keepRunning){
             readSensor();
+
             try {
                 Thread.sleep(config.outputs.timeIntervalMicro/1000);
             } catch (InterruptedException e) {
@@ -344,7 +345,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
     public void readTimestampRebase() throws InterruptedException {
         byte[] response = new byte[8];          // Length of initial timestamp (4 header + 5 Timestamp reference - ID )
         this.i2c.read(response);
-        Thread.sleep(100);
+
         // Print Time Stamp Info
         String timeStampResponse =
                 "0:\t" + (response[0] & 0xFF) + "\t(LSB Length)\n" +
@@ -598,7 +599,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
         int rawA = ((response[16] & 0xFF)<<8) | (response[15] & 0xFF);
 
         float q1 = 16384.0f;// Q point is 14
-        float q2 = 16.0f;// Q point 12
+        float q2 = 4096.0f;// Q point 12
 
         float i = (short) rawI/q1;
         float j = (short) rawJ/q1;

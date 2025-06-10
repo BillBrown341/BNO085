@@ -26,8 +26,8 @@ import org.vast.swe.SWEHelper;
  * Output specification and provider for {@link Bno085Sensor}.
  */
 public class GravityOutput extends AbstractSensorOutput<Bno085Sensor> {
-    static final String SENSOR_OUTPUT_NAME = "Gravity Vector";
-    static final String SENSOR_OUTPUT_LABEL = "Gravity Vector";
+    static final String SENSOR_OUTPUT_NAME = "Gravity";
+    static final String SENSOR_OUTPUT_LABEL = "Gravity";
     static final String SENSOR_OUTPUT_DESCRIPTION = "This is the output for the Gravity Data in m/s^2";
 
     // myNote:
@@ -63,16 +63,16 @@ public class GravityOutput extends AbstractSensorOutput<Bno085Sensor> {
                 .name(SENSOR_OUTPUT_NAME)
                 .label(SENSOR_OUTPUT_LABEL)
                 .description(SENSOR_OUTPUT_DESCRIPTION)
-                .addField("sampleTime", sweFactory.createTime()
+                .addField("timestamp", sweFactory.createTime()
                         .asSamplingTimeIsoUTC()
-                        .label("Sample Time")
+                        .label("Time Stamp")
                         .description("Time of data collection"))
-                .addField("gravX", sweFactory.createQuantity()
-                        .uom("m/s^2").label("Gravity X").description("X-axis gravity"))
-                .addField("gravY", sweFactory.createQuantity()
-                        .uom("m/s^2").label("Gravity Y").description("Y-axis gravity"))
-                .addField("gravZ", sweFactory.createQuantity()
-                        .uom("m/s^2").label("Gravity Z").description("Z-axis gravity"));
+                .addField("gravity_X", sweFactory.createQuantity()
+                        .uom("m/s^2").label("X").description("X-axis gravity"))
+                .addField("gravity_Y", sweFactory.createQuantity()
+                        .uom("m/s^2").label("Y").description("Y-axis gravity"))
+                .addField("gravity_Z", sweFactory.createQuantity()
+                        .uom("m/s^2").label("Z").description("Z-axis gravity"));
         dataStruct = recordBuilder.build();
 
         dataEncoding = sweFactory.newTextEncoding(",", "\n");

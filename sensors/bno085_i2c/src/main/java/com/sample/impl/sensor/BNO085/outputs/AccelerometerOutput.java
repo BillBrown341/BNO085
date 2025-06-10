@@ -26,8 +26,8 @@ import org.vast.swe.SWEHelper;
  * Output specification and provider for {@link Bno085Sensor}.
  */
 public class AccelerometerOutput extends AbstractSensorOutput<Bno085Sensor> {
-    static final String SENSOR_OUTPUT_NAME = "Acceleration Vector";
-    static final String SENSOR_OUTPUT_LABEL = "Acceleration Vector";
+    static final String SENSOR_OUTPUT_NAME = "Acceleration";
+    static final String SENSOR_OUTPUT_LABEL = "Acceleration";
     static final String SENSOR_OUTPUT_DESCRIPTION = "This is the output for the Acceleration Data in m/s^2";
 
     // myNote:
@@ -63,16 +63,16 @@ public class AccelerometerOutput extends AbstractSensorOutput<Bno085Sensor> {
                 .name(SENSOR_OUTPUT_NAME)
                 .label(SENSOR_OUTPUT_LABEL)
                 .description(SENSOR_OUTPUT_DESCRIPTION)
-                .addField("sampleTime", sweFactory.createTime()
+                .addField("timestamp", sweFactory.createTime()
                         .asSamplingTimeIsoUTC()
-                        .label("Sample Time")
+                        .label("Time Stamp")
                         .description("Time of data collection"))
-                .addField("accelX", sweFactory.createQuantity()
-                        .uom("m/s^2").label("Acceleration X").description("X-axis acceleration"))
-                .addField("accelY", sweFactory.createQuantity()
-                        .uom("m/s^2").label("Acceleration Y").description("Y-axis acceleration"))
-                .addField("accelZ", sweFactory.createQuantity()
-                        .uom("m/s^2").label("Acceleration Z").description("Z-axis acceleration"));
+                .addField("acceleration_X", sweFactory.createQuantity()
+                        .uom("m/s^2").label("X").description("X-axis acceleration"))
+                .addField("acceleration_Y", sweFactory.createQuantity()
+                        .uom("m/s^2").label("Y").description("Y-axis acceleration"))
+                .addField("acceleration_Z", sweFactory.createQuantity()
+                        .uom("m/s^2").label("Z").description("Z-axis acceleration"));
 
         dataStruct = recordBuilder.build();
 

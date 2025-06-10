@@ -26,8 +26,8 @@ import org.vast.swe.SWEHelper;
  * Output specification and provider for {@link Bno085Sensor}.
  */
 public class MagFieldCalibratedOutput extends AbstractSensorOutput<Bno085Sensor> {
-    static final String SENSOR_OUTPUT_NAME = "Magnetic Field Calibrated Vector";
-    static final String SENSOR_OUTPUT_LABEL = "Magnetic Field Vector";
+    static final String SENSOR_OUTPUT_NAME = "Magnetic Field Calibrated";
+    static final String SENSOR_OUTPUT_LABEL = "Magnetic Field";
     static final String SENSOR_OUTPUT_DESCRIPTION = "This is the output for the geomagnetic field data in µT";
 
     // myNote:
@@ -63,16 +63,16 @@ public class MagFieldCalibratedOutput extends AbstractSensorOutput<Bno085Sensor>
                 .name(SENSOR_OUTPUT_NAME)
                 .label(SENSOR_OUTPUT_LABEL)
                 .description(SENSOR_OUTPUT_DESCRIPTION)
-                .addField("sampleTime", sweFactory.createTime()
+                .addField("timestamp", sweFactory.createTime()
                         .asSamplingTimeIsoUTC()
-                        .label("Sample Time")
+                        .label("Time Stamp")
                         .description("Time of data collection"))
-                .addField("magFieldX", sweFactory.createQuantity()
-                        .uom("µT").label("Magnetic Field X").description("X-axis magnetic field"))
-                .addField("magFieldY", sweFactory.createQuantity()
-                        .uom("µT").label("Magnetic Field Y").description("Y-axis magnetic field"))
-                .addField("magFieldZ", sweFactory.createQuantity()
-                        .uom("µT").label("Magnetic Field Z").description("Z-axis magnetic field"));
+                .addField("magnetic_field_calibrated_X", sweFactory.createQuantity()
+                        .uom("µT").label("X").description("X-axis magnetic field"))
+                .addField("magnetic_field_calibrated_Y", sweFactory.createQuantity()
+                        .uom("µT").label("Y").description("Y-axis magnetic field"))
+                .addField("magnetic_field_calibrated_Z", sweFactory.createQuantity()
+                        .uom("µT").label("Z").description("Z-axis magnetic field"));
 
         dataStruct = recordBuilder.build();
 

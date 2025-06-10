@@ -26,8 +26,8 @@ import org.vast.swe.SWEHelper;
  * Output specification and provider for {@link Bno085Sensor}.
  */
 public class GyroCalibratedOutput extends AbstractSensorOutput<Bno085Sensor> {
-    static final String SENSOR_OUTPUT_NAME = "Gyroscope Calibrated Vector";
-    static final String SENSOR_OUTPUT_LABEL = "Gyroscope Calibrated Vector";
+    static final String SENSOR_OUTPUT_NAME = "Gyroscope Calibrated";
+    static final String SENSOR_OUTPUT_LABEL = "Gyroscope Calibrated";
     static final String SENSOR_OUTPUT_DESCRIPTION = "This is the output for the rotational velocity Data in rad/s";
 
     // myNote:
@@ -63,16 +63,16 @@ public class GyroCalibratedOutput extends AbstractSensorOutput<Bno085Sensor> {
                 .name(SENSOR_OUTPUT_NAME)
                 .label(SENSOR_OUTPUT_LABEL)
                 .description(SENSOR_OUTPUT_DESCRIPTION)
-                .addField("sampleTime", sweFactory.createTime()
+                .addField("timestamp", sweFactory.createTime()
                         .asSamplingTimeIsoUTC()
-                        .label("Sample Time")
+                        .label("Time Stamp")
                         .description("Time of data collection"))
-                .addField("gyroX", sweFactory.createQuantity()
-                        .uom("rad/s").label("Gyro X").description("X-axis gyro"))
-                .addField("gyroY", sweFactory.createQuantity()
-                        .uom("rad/s").label("Gyro Y").description("Y-axis gyro"))
-                .addField("gyroZ", sweFactory.createQuantity()
-                        .uom("rad/s").label("Gyro Z").description("Z-axis gyro"));
+                .addField("gyroscope_calibrated_X", sweFactory.createQuantity()
+                        .uom("rad/s").label("X").description("X-axis gyro"))
+                .addField("gyroscope_calibrated_Y", sweFactory.createQuantity()
+                        .uom("rad/s").label("Y").description("Y-axis gyro"))
+                .addField("gyroscope_calibrated_Z", sweFactory.createQuantity()
+                        .uom("rad/s").label("Z").description("Z-axis gyro"));
 
         dataStruct = recordBuilder.build();
 

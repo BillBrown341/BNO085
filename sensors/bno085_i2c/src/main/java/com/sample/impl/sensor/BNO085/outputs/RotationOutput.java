@@ -19,15 +19,17 @@ import net.opengis.swe.v20.DataRecord;
 import org.sensorhub.api.data.DataEvent;
 import org.sensorhub.impl.sensor.AbstractSensorOutput;
 import org.vast.swe.SWEBuilders;
+import org.vast.swe.SWEConstants;
 import org.vast.swe.SWEHelper;
+import org.vast.swe.helper.GeoPosHelper;
 
 
 /**
  * Output specification and provider for {@link Bno085Sensor}.
  */
 public class RotationOutput extends AbstractSensorOutput<Bno085Sensor> {
-    static final String SENSOR_OUTPUT_NAME = "Rotation Vector";
-    static final String SENSOR_OUTPUT_LABEL = "Rotation Vector";
+    static final String SENSOR_OUTPUT_NAME = "Rotation";
+    static final String SENSOR_OUTPUT_LABEL = "Rotation";
     static final String SENSOR_OUTPUT_DESCRIPTION = "This is the output for the orientation data in quaternion";
 
     // myNote:
@@ -57,26 +59,27 @@ public class RotationOutput extends AbstractSensorOutput<Bno085Sensor> {
     public void doInit() {
         // Get an instance of SWE Factory suitable to build components
         SWEHelper sweFactory = new SWEHelper();
+        GeoPosHelper geoFactor = new GeoPosHelper();
 
         // Create the data record description
         SWEBuilders.DataRecordBuilder recordBuilder = sweFactory.createRecord()
                 .name(SENSOR_OUTPUT_NAME)
                 .label(SENSOR_OUTPUT_LABEL)
                 .description(SENSOR_OUTPUT_DESCRIPTION)
-                .addField("sampleTime", sweFactory.createTime()
+                .addField("timestamp", sweFactory.createTime()
                         .asSamplingTimeIsoUTC()
-                        .label("Sample Time")
+                        .label("Time Stamp")
                         .description("Time of data collection"))
-                .addField("rotI", sweFactory.createQuantity()
-                        .label("Rotation Quaternion I").description("rotation quaterion i"))
-                .addField("rotJ", sweFactory.createQuantity()
-                        .label("Rotation Quaternion J").description("rotation quaterion j"))
-                .addField("rotK", sweFactory.createQuantity()
-                        .label("Rotation Quaternion K").description("rotation quaterion k"))
-                .addField("rotR", sweFactory.createQuantity()
-                        .label("Rotation Quaternion Real").description("rotation quaterion real"))
-                .addField("rotA", sweFactory.createQuantity()
-                        .uom("rad").label("Roation Quaternion Accuracy").description("rotation accuracy"));
+                .addField("Rotation Vector", geoFactor.createQuatOrientation()
+                        .description("rotation quaternion")
+                        .addCoordinate("qa", sweFactory.createQuantity()
+                            .definition(SWEConstants.DEF_COEF)
+                            .label("Heading Accuracy")
+                            .uomCode("1")
+                            .axisId("A")
+                            .uom("rad")
+                            .build())
+                );
 
         dataStruct = recordBuilder.build();
 
@@ -104,7 +107,7 @@ public class RotationOutput extends AbstractSensorOutput<Bno085Sensor> {
         return accumulator / (double) MAX_NUM_TIMING_SAMPLES;
     }
 
-    public void SetData(float i, float j, float k, float r, float a) {
+    public void SetData(float i, float j, float k, float real, float accuracy) {
                DataBlock dataBlock;
                System.out.println("Setting Rotation Vector");
         try {
@@ -126,8 +129,8 @@ public class RotationOutput extends AbstractSensorOutput<Bno085Sensor> {
             dataBlock.setDoubleValue(1, i);
             dataBlock.setDoubleValue(2, j);
             dataBlock.setDoubleValue(3, k);
-            dataBlock.setDoubleValue(4, r);
-            dataBlock.setDoubleValue(5, a);
+            dataBlock.setDoubleValue(4, real);
+            dataBlock.setDoubleValue(5, accuracy);
 
             latestRecord = dataBlock;
             latestRecordTime = System.currentTimeMillis();

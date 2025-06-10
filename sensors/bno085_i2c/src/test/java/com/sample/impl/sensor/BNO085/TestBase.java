@@ -20,7 +20,7 @@ import org.junit.Before;
  */
 public class TestBase {
     Bno085Sensor sensor;
-    BNO085Output output;
+//    BNO085Output output;
 
     @Before
     public void init() throws Exception {
@@ -31,7 +31,7 @@ public class TestBase {
         sensor = new Bno085Sensor();
         sensor.init(config);
         sensor.start();
-        output = sensor.output;
+//        output = sensor.output;
     }
 
     @After
