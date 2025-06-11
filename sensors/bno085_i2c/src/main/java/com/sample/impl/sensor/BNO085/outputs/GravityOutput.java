@@ -18,6 +18,8 @@ import net.opengis.swe.v20.DataEncoding;
 import net.opengis.swe.v20.DataRecord;
 import org.sensorhub.api.data.DataEvent;
 import org.sensorhub.impl.sensor.AbstractSensorOutput;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.vast.swe.SWEBuilders;
 import org.vast.swe.SWEHelper;
 
@@ -38,6 +40,8 @@ public class GravityOutput extends AbstractSensorOutput<Bno085Sensor> {
     private final Object histogramLock = new Object();
     private long lastSetTimeMillis = System.currentTimeMillis();
 
+    private static final Logger logger = LoggerFactory.getLogger(GravityOutput.class);
+
 
     private DataRecord dataStruct;
     private DataEncoding dataEncoding;
@@ -55,6 +59,7 @@ public class GravityOutput extends AbstractSensorOutput<Bno085Sensor> {
      * Initializes the data structure for the output, defining the fields, their ordering, and data types.
      */
     public void doInit() {
+        logger.info("Initializing Gravity Output");
         // Get an instance of SWE Factory suitable to build components
         SWEHelper sweFactory = new SWEHelper();
 
@@ -100,8 +105,7 @@ public class GravityOutput extends AbstractSensorOutput<Bno085Sensor> {
     }
 
     public void SetData(float x, float y, float z) {
-               DataBlock dataBlock;
-               System.out.println("Setting Gravity Data");
+        DataBlock dataBlock;
         try {
             if (latestRecord == null) {
                 dataBlock = dataStruct.createDataBlock();

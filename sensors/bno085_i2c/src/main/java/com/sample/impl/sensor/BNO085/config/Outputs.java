@@ -10,8 +10,8 @@ import org.sensorhub.api.config.DisplayInfo;
     @since June 9, 2025
  */
 public class Outputs {
-    @DisplayInfo(label = "Time Interval (µs)", desc="Provide interval sensor's should send info in microseconds")
-    public int timeIntervalMicro = 1000000;
+    @DisplayInfo(label = "Time Interval (seconds)", desc="Provide a time interval for sensor to provide readings")
+    public int timeIntervalSeconds = 1;
 
     @DisplayInfo(label = "Accelerometer Vector", desc="Do you want sensor to display gravity vector")
     public boolean isAccelerometer = false;
@@ -26,6 +26,6 @@ public class Outputs {
     public boolean isMagFieldCal = false;
 
     @DisplayInfo(label = "Rotation Vector", desc="Do you want sensor to display the calibrated Rotation Vector")
-    public boolean isRotation = false;
+    public boolean isRotation = true;
 
 }

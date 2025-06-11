@@ -41,29 +41,28 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
 
     private static final Logger logger = LoggerFactory.getLogger(Bno085Sensor.class);
 
+    ///  REQUIRED VARIABLES FOR SENSOR OPERATION
+    // I2C Initialization Variables from Pi4j
+    I2C i2c;
+    Context pi4j;
+    I2CProvider i2CProvider;
 
-//    BNO085Output output;
+    // Class Variables to handle output operations during the sensor's primary readSensor() method
     AccelerometerOutput accelerometerOutput;
     GravityOutput gravityOutput;
     GyroCalibratedOutput gyroCalOutput;
     MagFieldCalibratedOutput magFieldCalOutput;
     RotationOutput rotationOutput;
 
-    // myNote:
-    // My variables:
-    I2C i2c;
-    Context pi4j;
-    I2CProvider i2CProvider;
-
+    // Local variables
     private volatile boolean keepRunning = false;
     List<Byte> activeReportIds = new ArrayList<>();
 
+    // Cosmetic debugging Variables Used to make font bold
+    String BoldOn = "\033[1m";  // ANSI code to turn on bold
+    String BoldOff = "\033[0m"; // ANSI code to turn on bold
 
-
-    /// Debugging Variables
-    String BoldOn = "\033[1m";   // ANSI code to turn on bold
-    String BoldOff = "\033[0m";
-
+    ///  INITIALIZE BNO085 SENSOR OVER I2C
     @Override
     public void doInit() throws SensorHubException {
         super.doInit();
@@ -71,14 +70,14 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
         // Create I2C connection
         createI2cConnection();
 
-        // Generate identifiers
+        // Create SensorHub Identifiers using designated prefix and serial number from Admin Panel
         generateUniqueID(UID_PREFIX, config.serialNumber);
         generateXmlID(XML_PREFIX, config.serialNumber);
 
-        // Create and initialize outputs checked in the admin panel
+        // Initialize Sensor Outputs selected in the Admin Panel
         createConfiguredOutputs();
         try {
-            resetSensor();
+            resetSensor();  // Reset Sensor after initialization to clean/flush any past data
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -89,19 +88,17 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
     public void doStart() throws SensorHubException, InterruptedException {
         super.doStart();
         byte[] timeIntervalArray;
-        timeIntervalArray = convertTo4ByteArray(config.outputs.timeIntervalMicro);
+        long timeIntervalMicro = config.outputs.timeIntervalSeconds * 1000000L; // BNO085 Sensor uses µS to set sensor features
+        timeIntervalArray = convertTo4ByteArray(timeIntervalMicro);
 
         for (byte id: activeReportIds){
-            System.out.println(BoldOn + "Setting Sensor on BNO085" + BoldOff);
+            logger.info("{}Setting Sensor on BNO085: {}0x{}", BoldOn, BoldOff, Integer.toHexString(id & 0xFF));
             setFeature(id,timeIntervalArray[3],timeIntervalArray[2],timeIntervalArray[1],timeIntervalArray[0]);
         }
 
-//        Thread.sleep(3000);
-
-
         keepRunning = true;
-        Thread worker = new Thread(this, "BNO0855 Worker");
-        worker.start();
+        Thread readBNO085 = new Thread(this, "BNO085 Worker");
+        readBNO085.start();
     }
 
     @Override
@@ -110,7 +107,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
         keepRunning = false;
 
         for (byte id: activeReportIds){
-            System.out.println(BoldOn + "Turning off Sensor on BNO085" + BoldOff);
+            logger.info("{}Turning off Sensor on BNO085{}", BoldOn, BoldOff);
             setFeature(id,(byte)0,(byte)0,(byte)0,(byte)0);
         }
 
@@ -128,17 +125,17 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
             readSensor();
 
             try {
-                Thread.sleep(config.outputs.timeIntervalMicro/1000);
+                Thread.sleep(config.outputs.timeIntervalSeconds * 1000L); // Thread uses milliseconds
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
     }
 
-    // myNote:
-    // Sensor Methods
+
+    // BNO085 SENSOR SPECIFIC METHODS
     /// UTILITY METHODS
-    public static byte[] convertTo4ByteArray(int number){
+    public static byte[] convertTo4ByteArray(long number){
         return new byte[] {
                 (byte) (number >>> 24),
                 (byte) (number >>> 16),
@@ -164,57 +161,8 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
                 results.append(i).append(":\t").append(byteArray[i] & 0xFF).append("\n");
             }
         }
-        System.out.println(results);
+//        System.out.println(results);
     }
-
-//    public float[] combineFloatArray(float[] newArray, float[] existingArray){
-//        int combinedLength = newArray.length + existingArray.length;
-//        float[] combinedArray = new float[combinedLength];
-//
-//        System.arraycopy(existingArray,0,combinedArray,0,existingArray.length);
-//        System.arraycopy(newArray, 0, combinedArray, existingArray.length, newArray.length);
-//
-//        return combinedArray;
-//
-//    }
-
-//    public float[] createDataBlockArray(){
-//        // VALUES FOR THIS ARRAY MUST BE IN ORDER OF OUTPUT DATA STRUCTURE
-//        float[] DataBlockValues = new float[0];
-//        if(config.outputs.isAccelerometer){
-//            if(accelerationValues == null){
-//                accelerationValues = new float[]{0, 0, 0};
-//            }
-//            DataBlockValues = combineFloatArray(DataBlockValues, accelerationValues);
-//        }
-//        if(config.outputs.isGravity){
-//            if(gravityValues == null){
-//                gravityValues = new float[]{0, 0, 0};
-//            }
-//            DataBlockValues = combineFloatArray(DataBlockValues,gravityValues);
-//        }
-//        if(config.outputs.isGyroCal){
-//            if(gyroCalValues == null){
-//                gyroCalValues = new float[]{0, 0, 0};
-//            }
-//            DataBlockValues = combineFloatArray(DataBlockValues,gyroCalValues);
-//        }
-//        if(config.outputs.isMagFieldCal){
-//            if(magFieldCalValues == null){
-//                magFieldCalValues = new float[]{0, 0, 0};
-//            }
-//            DataBlockValues = combineFloatArray(DataBlockValues,magFieldCalValues);
-//        };
-//        if(config.outputs.isRotation){
-//            if(rotationValues == null){
-//                rotationValues = new float[]{0, 0, 0, 0, 0};
-//            }
-//            DataBlockValues = combineFloatArray(DataBlockValues,rotationValues);
-//        };
-//
-//
-//        return DataBlockValues;
-//    }
 
     public void createConfiguredOutputs() {
 
@@ -276,6 +224,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
 
     public void resetSensor() throws InterruptedException {
         System.out.println(BoldOn + "Resetting Sensor..." + BoldOff);
+        logger.info("Resetting Sensor...");
         byte[] setRequest = new byte[21];                               // Create a byte array to hold header info (4) and Set Feature Command Cargo (17)
 
         setRequest[0] = (byte) 0x15;                                    // Header 1: Length of Message LSB
@@ -300,6 +249,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
         Thread.sleep(200);
         readSensor();
         System.out.println(BoldOn + "Sensor Reset Complete..." + BoldOff);
+        logger.info("Sensor Reset Complete...");
     }
 
     public void setFeature(byte ReportID, byte time_byte_LSB, byte time_byte_2, byte time_byte_1, byte time_byte_MSB) {
@@ -370,7 +320,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
             }
         }
 
-        System.out.println(results);
+//        System.out.println(results);
     }
 
     // 0XFA --- TIme Stamp Rebase Report
@@ -390,7 +340,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
                         "7:\t" +  (response[6] & 0xFF) + "\t(Base Delta...)\n" +
                         "8:\t" +  (response[7] & 0xFF) + "\t(Base Delta MSB)\n";
 
-        System.out.println(BoldOn + "Timestamp Rebase\n" + BoldOff + timeStampResponse);
+//        System.out.println(BoldOn + "Timestamp Rebase\n" + BoldOff + timeStampResponse);
     }
 
     // 0XFB --- Base Time Stamp Report
@@ -409,7 +359,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
                         "7:\t" +  (response[6] & 0xFF) + "\t(Base Delta...)\n" +
                         "8:\t" +  (response[7] & 0xFF) + "\t(Base Delta MSB)\n";
 
-        System.out.println(BoldOn + "Base Timestamp Reference\n" + BoldOff + timeStampResponse);
+//        System.out.println(BoldOn + "Base Timestamp Reference\n" + BoldOff + timeStampResponse);
     }
 
     // 0xFC --- FEATURE RESPONSE
@@ -441,7 +391,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
                         "19:\t" +  (response[18] & 0xFF) + "\t(Config word...)\n" +
                         "20:\t" +  (response[19] & 0xFF) + "\t(Config word MSB)\n";
 
-        System.out.println(featureResponse);
+//        System.out.println(featureResponse);
 
     }
 
@@ -475,7 +425,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
                         "19:\t" +  (byteArray[18] & 0xFF) + "\t\t(R10)\n"
                 ;
 
-        System.out.println(results);
+//        System.out.println(results);
     }
 
     // 0XF8 --- PRODUCT ID RESPONSE
@@ -500,7 +450,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
                         "19:\t" +  (byteArray[18] & 0xFF) +"\t\t(Reserved)\n"
                 ;
 
-        System.out.println(results);
+//        System.out.println(results);
     }
 
     // 0X01, 0X04, 0X06 --- ACCELEROMETER. LINEAR ACCELERATION, AND GRAVITY
@@ -538,16 +488,13 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
             "10-11:\t" + String.format("%.2f", y) + " m/s^2\t(" + idName + " Axis Y)\n" + // Must divide by 256 because Q point is 8
             "12-13:\t" + String.format("%.2f", z) + " m/s^2\t(" + idName + " Axis Z)\n";// Must divide by 256 because Q point is 8  //Must devide by 256 because Q point is 8
 
-        System.out.println(BoldOn + idName + " Report\n" + BoldOff + featureResponse);
+//        System.out.println(BoldOn + idName + " Report\n" + BoldOff + featureResponse);
         switch (reportId){
             case Bno085ConstantsI2C.ACCELEROMETER_ID:
-//                accelerationValues = new float[]{ x, y, z};
                 accelerometerOutput.SetData(x,y,z);
                 break;
             case Bno085ConstantsI2C.GRAVITY_ID:
                 gravityOutput.SetData(x,y,z);
-
-//                gravityValues = new float[]{ x, y, z };
                 break;
         }
     }
@@ -580,8 +527,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
             "10-11:\t" + String.format("%.2f", y) + " rad/s\t(Calibrated Axis Y)\n" + // Must divide by 256 because Q point is 8
             "12-13:\t" + String.format("%.2f", z) + " rad/s\t(Calibrated Axis Z)\n";// Must divide by 256 because Q point is 8  //Must devide by 256 because Q point is 8
 
-        System.out.println(BoldOn + "Gyroscope Calibrated Report\n" + BoldOff + featureResponse);
-
+//        System.out.println(BoldOn + "Gyroscope Calibrated Report\n" + BoldOff + featureResponse);
         gyroCalOutput.SetData(x,y,z);
     }
 
@@ -614,7 +560,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
             "10-11:\t" + String.format("%.2f", y) + " µT\t(Calibrated Axis Y)\n" +
             "12-13:\t" + String.format("%.2f", z) + " µT\t(Calibrated Axis Z)\n";
 
-        System.out.println(BoldOn + "Magnetic Field Calibrated Report\n" + BoldOff + featureResponse);
+//        System.out.println(BoldOn + "Magnetic Field Calibrated Report\n" + BoldOff + featureResponse);
 
         magFieldCalOutput.SetData(x,y,z);
     }
@@ -655,7 +601,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
                         "14-15:\t" + String.format("%.2f", r) + "\t(Quaternion Real)\n" +
                         "16-17:\t" + String.format("%.2f", a) + " rad\t(Accuracy Estimate)\n";
 
-        System.out.println(BoldOn + "Rotation Vector Report\n" + BoldOff + featureResponse);
+//        System.out.println(BoldOn + "Rotation Vector Report\n" + BoldOff + featureResponse);
 
         rotationOutput.SetData(i, j, k, r, a);
     }
@@ -698,7 +644,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
             "16-17:\t" + String.format("%.2f", ybias) + " rad/s\t(bias Axis Y)\n" +
             "18-19:\t" + String.format("%.2f", zbias) + " rad/s\t(bias Axis Z)\n";
 
-        System.out.println(BoldOn + "Gyroscope Uncalibrated Report\n" + BoldOff + featureResponse);
+//        System.out.println(BoldOn + "Gyroscope Uncalibrated Report\n" + BoldOff + featureResponse);
 
     }
 
@@ -739,7 +685,7 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
                         "16-17:\t" + String.format("%.2f", ybias) + " µT\t(uncalibrated hard iron bias Axis Y)\n" +
                         "18-19:\t" + String.format("%.2f", zbias) + " µT\t(uncalibrated hard iron bias Axis Z)\n";
 
-        System.out.println(BoldOn + "Magnetic Field Uncalibrated Report\n" + BoldOff + featureResponse);
+//        System.out.println(BoldOn + "Magnetic Field Uncalibrated Report\n" + BoldOff + featureResponse);
 
     }
 
@@ -812,21 +758,21 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
     public void readExecutableResponse(int msgLength){
         byte[] executableMsg = new byte[msgLength + 4];
         this.i2c.read(executableMsg);
-        System.out.println(BoldOn + "EXECUTABLE RESPONSE" + BoldOff);
+//        System.out.println(BoldOn + "EXECUTABLE RESPONSE" + BoldOff);
         printBytes(executableMsg);
     }
 
     public void readWakeInputSensorReports(int msgLength){
         byte[] executableMsg = new byte[msgLength + 4];
         this.i2c.read(executableMsg);
-        System.out.println(BoldOn + "EXECUTABLE RESPONSE" + BoldOff);
+//        System.out.println(BoldOn + "WAKE INPUT SENSOR REPORT" + BoldOff);
         printBytes(executableMsg);
     }
 
     public void readGyroRotationVectorResponse(int msgLength){
         byte[] executableMsg = new byte[msgLength + 4];
         this.i2c.read(executableMsg);
-        System.out.println(BoldOn + "EXECUTABLE RESPONSE" + BoldOff);
+//        System.out.println(BoldOn + "GYRO ROTATION VECTOR RESPONSE" + BoldOff);
         printBytes(executableMsg);
     }
 
@@ -850,14 +796,14 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
 
     ///  MAIN METHOD THAT READS ALL DATA IN SENSOR'S DATASTREAM
     public void readSensor() {
-        //RETRIEVE HEADER AND DESTRUCTURE
+        //RETRIEVE HEADER AND DESTRUCTURE INFORMATION
         byte[] header = new byte[4];
         this.i2c.read(header);
 
         int msgLength = ((header[1] & 0x7F) << 8) | (header[0] & 0xFF); // combine LSB and MSB message, 0x7F hides first bit and 0xFF makes signed byte to unsigned byte
         int channel = header[2] & 0xFF; //Convert to unsigned byte
 
-        // DIGEST MESSAGE HEADER AND CHECK THE CHANNEL IF MESSAGE CONTAINS ANY LENGTH
+        // DIGEST MESSAGE HEADER AND CHECK THE CHANNEL AND IF MESSAGE CONTAINS ANY LENGTH
         while (msgLength > 0) {
             switch (channel) {
                 case Bno085ConstantsI2C.CHANNEL.SH_COMMAND:
@@ -893,13 +839,12 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
                 default:
                     // UNRECOGNIZED HEADER INFORMATION
                     String unrecognizedHeader =
-                            BoldOn + "UnrecognizedHeader:\n" + BoldOff +
-                                    "0:\t" + msgLength + "\t(LSB Length)\n" +
-                                    "1:\t" + (header[1] & 0xFF) + "\t(MSB Length)\n" +
-                                    "2:\t" + channel + "\t(Channel)\n" +
-                                    "3:\t" + (header[3] & 0xFF) + "\t(Sequence Number)\n";
+                        BoldOn + "UnrecognizedHeader:\n" + BoldOff +
+                        "0:\t" + msgLength + "\t(LSB Length)\n" +
+                        "1:\t" + (header[1] & 0xFF) + "\t(MSB Length)\n" +
+                        "2:\t" + channel + "\t(Channel)\n" +
+                        "3:\t" + (header[3] & 0xFF) + "\t(Sequence Number)\n";
                     System.out.println(unrecognizedHeader);
-                    //                    break;
                     return;
             }
 
@@ -908,13 +853,6 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
             msgLength = ((header[1] & 0x7F) << 8) | (header[0] & 0xFF);
             channel = header[2] & 0xFF;
         }
-
-//        System.out.println("No more data in stream...");
-        // myNote:
-        // SET DATA IN OUTPUT
-//        float[] myValues = createDataBlockArray();
-//        output.SetData(myValues);
-
     }
 
     public void createI2cConnection(){
@@ -928,16 +866,17 @@ public class Bno085Sensor extends AbstractSensorModule<Bno085Config> implements 
                 .name("bno055")
                 .build();
         System.out.println("Building I2C Connection...");
+        logger.info("Building I2C Connection...");
         try {
             this.i2c = i2CProvider.create(i2cConfig);
             System.out.println(BoldOn + "I2C Connection Established" + BoldOff + "\n\tBus/Port:" + config.connection.I2C_BUS_NUMBER + "\n\tSensor Address: 0x" + Integer.toHexString(config.connection.SENSOR_ADDRESS));
-
+            logger.info("{}I2C Connection Established{}\n\tBus/Port:{}\n\tSensor Address: 0x{}", BoldOn, BoldOff, config.connection.I2C_BUS_NUMBER, Integer.toHexString(config.connection.SENSOR_ADDRESS));
 
         } catch (Exception e) {
             System.out.println("I2C Connection Failed...check I2C bus and Sensor Address");
+            logger.error("I2C Connection Failed...check I2C bus and Sensor Address");
             throw new RuntimeException(e);
         }
-
     }
 
 }
